@@ -133,7 +133,152 @@ spec:
 1. Создать Deployment приложения, состоящего из Nginx.
 2. Создать собственную веб-страницу и подключить её как ConfigMap к приложению.
 3. Выпустить самоподписной сертификат SSL. Создать Secret для использования сертификата.
-4. Создать Ingress и необходимый Service, подключить к нему SSL в вид. Продемонстировать доступ к приложению по HTTPS. 
-4. Предоставить манифесты, а также скриншоты или вывод необходимых команд.
 
+#### Ответ:
+
+Создаю сертификат
+![image](https://github.com/DrDavidN/12-08-hw/assets/128225763/8309501b-2b3b-433f-b720-7c45e6333141)
+
+Создаю secret
+![image](https://github.com/DrDavidN/12-08-hw/assets/128225763/32291aae-6bd7-4362-a437-49bc6f8f66bd)
+
+4. Создать Ingress и необходимый Service, подключить к нему SSL в вид. Продемонстировать доступ к приложению по HTTPS. 
+
+Создаю ingress и service и применяю их, проверяю доступ
+![image](https://github.com/DrDavidN/12-08-hw/assets/128225763/e162f5ef-fa2b-4f98-904d-1ccd0e53b6d0)
+![image](https://github.com/DrDavidN/12-08-hw/assets/128225763/a4cd554e-cbf4-4035-9ecb-adfd44b8495c)
+
+Сайт доступен.
+
+5. Предоставить манифесты, а также скриншоты или вывод необходимых команд.
+
+#### Ответ:
+
+nginx_deployment.yaml
+
+```YAML
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-only
+  namespace: 12-08-hw
+  labels:
+    app: nginx-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-frontend
+  template:
+    metadata:
+      labels:
+        app: nginx-frontend
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25.4
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        volumeMounts:
+        - name: nginx-mount
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: nginx-mount
+        configMap:
+          name: nginx-maps
+```
+
+nginx_configmap.yaml
+
+```YAML
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-maps
+  namespace: 12-08-hw
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <body>
+    <h1>This is a modified test page!</h1>
+    </body>
+    </html>
+```
+
+nginx_ingress.yaml
+
+```YAML
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+  namespace: 12-08-hw
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.class: nginx
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - myingress.com
+    secretName: ingress-cert
+  rules:
+  - host: myingress.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80
+```
+
+nginx_service.yaml
+
+```YAML
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: 12-08-hw
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx-frontend
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+```
+
+nginx_secret.yaml
+
+```YAML
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ingress-cert
+  namespace: 12-08-hw
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUQzekNDQXNlZ0F3SUJBZ0lVZjFNbkZGeStCY09FNmhoREJFTEY2NDNSMzFZd0RRWUpLb1pJaHZjTkFRRUwKQlFBd2ZqRUxNQWtHQTFVRUJoTUNVbFV4RHpBTkJnTlZCQWdNQmsxdmMyTnZkekVQTUEwR0ExVUVCd3dHVFc5eg>
+  tls.key: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2d0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktrd2dnU2xBZ0VBQW9JQkFRRG9JZ0ZnTkgxbXJTTWUKZkd3Vm4vOUxhMUEyL093VDFBYWo5dmFYeFZOZ2VYK01uNlN4YjVIUFdEQlVDVWFOUUJ3aldjTkRvK1RSd2JNZg>
+```
 ------
