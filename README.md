@@ -45,7 +45,7 @@
 
 deployment.yaml
 
-```YAAML
+```YAML
 apiVersion: apps/v1
 kind: Deployment
 metadata:
